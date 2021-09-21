@@ -10,29 +10,33 @@ import torch.nn.functional as F
 import torchvision.models as models
 import torchvision.transforms as transforms
 
+
 class FashionDataset(Dataset):
-    def __init__(self, img_path='FashionDataset/', 
-                 split_path='FashionDataset/split/', 
+    def __init__(self, img_path='FashionDataset/',
+                 split_path='FashionDataset/split/',
                  transform=None, flag=None):
 
         super().__init__()
-        
+
         self.data = []
         self.labels = []
         self.transform = transform
-        
+
         if flag == 'train':
             X_path = os.path.join(split_path, 'train.txt')
             X_files = open(X_path).read().split('\n')
             y_path = os.path.join(split_path, 'train_attr.txt')
             y_files = open(y_path).read().split('\n')
-            
+
         if flag == 'val':
             X_path = os.path.join(split_path, 'val.txt')
             X_files = open(X_path).read().split('\n')
             y_path = os.path.join(split_path, 'val_attr.txt')
             y_files = open(y_path).read().split('\n')
-            
+
+        else:
+            raise ValueError("Not valid flag. Must be train or val")
+
         for i in range(len(X_files)):
             # images path
             self.data.append(os.path.join(img_path, X_files[i]))
@@ -47,22 +51,22 @@ class FashionDataset(Dataset):
                 'cat5': int(tmp_labels[4]),
                 'cat6': int(tmp_labels[5])
             })
-            
+
     def __getitem__(self, idx):
         # read image
         img_path = self.data[idx]
         img = Image.open(img_path)
-        
+
         # check if transform
         if self.transform:
             img = self.transform(img)
-            
+
         opt_data = {
             'img': img,
             'labels': self.labels[idx]
         }
         return opt_data
-    
+
     def __len__(self):
         return len(self.data)
 
@@ -72,10 +76,10 @@ class MultiLabelModel(nn.Module):
         super().__init__()
         # pretrained resnet50 as base model
         self.resnet50 = models.resnet50(pretrained=True)
-        
+
         # size of last channel before classifier
         last_channel = models.resnet50().fc.out_features
-        
+
         # create sequential layers for all 6 cats
         self.cats = []
         for i in range(len(n_classes)):
@@ -84,10 +88,10 @@ class MultiLabelModel(nn.Module):
                 nn.Linear(in_features=last_channel, out_features=n_classes[i])
             )
             self.cats.append(tmp_cat)
-            
+
     def forward(self, x):
         x = self.resnet50(x)
-        
+
         opt = {
             'cat1': self.cats[0](x),
             'cat2': self.cats[1](x),
@@ -96,14 +100,14 @@ class MultiLabelModel(nn.Module):
             'cat5': self.cats[4](x),
             'cat6': self.cats[5](x)
         }
-        
+
         return opt
 
 
 def loss_function(nn_output, ground_truth):
     sum_loss = 0
     opt = {}
-    
+
     for cat in nn_output:
         tmp_loss = F.cross_entropy(nn_output[cat], ground_truth[cat])
         opt[cat] = tmp_loss
@@ -125,7 +129,7 @@ train_transform = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-train_data = FashionDataset(transform = train_transform, flag=flag)
+train_data = FashionDataset(transform=train_transform, flag=flag)
 train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
 model = MultiLabelModel()
@@ -134,21 +138,21 @@ optimizer = torch.optim.Adam(model.parameters())
 model.train
 for epoch in range(100):
     total_loss = 0
-    
+
     for batch in train_dataloader:
         optimizer.zero_grad()
-        
+
         print(1)
         img = batch['img']
         ground_truth = batch['labels']
         nn_output = model(img)
-        
+
         print(2)
         loss, loss_each = loss_function(nn_output, ground_truth)
         total_loss += loss.item()
-        
+
         print(3)
         loss.backward()
         optimizer.step()
-        
+
     print('Epoch', epoch, 'loss', total_loss)
