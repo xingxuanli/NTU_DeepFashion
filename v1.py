@@ -15,6 +15,9 @@ from torch.utils.tensorboard import SummaryWriter
 import warnings
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score
 
+from focalloss import FocalLoss
+
+
 # GLOBAL_PATH = 'drive/MyDrive/Colab Notebooks/DeepFashionProject/'
 GLOBAL_PATH = ''
 
@@ -80,12 +83,11 @@ class MultiLabelModel(nn.Module):
         super().__init__()
         # pretrained resnet50 as base model
         self.resnet50 = models.resnet50(pretrained=True)
+        self.resnet50.fc = nn.Linear(in_features=2048, out_features=1024)
         
-        # size of last channel before classifier
-        last_channel = models.resnet50().fc.out_features
 
         self.fc1 = nn.Sequential(
-            nn.Linear(in_features=last_channel, out_features=512),
+            nn.Linear(in_features=1024, out_features=512),
             nn.ReLU()
         )
 
@@ -158,12 +160,36 @@ class MultiLabelModel(nn.Module):
 def loss_function(nn_output, ground_truth):
     sum_loss = 0
     opt = {}
+    # weights = {
+    #     'cat1': 0.1,
+    #     'cat2': 0.05,
+    #     'cat3': 0.25,
+    #     'cat4': 0.25,
+    #     'cat5': 0.3,
+    #     'cat6': 0.05,
+    # }
+
+    weights = {
+        'cat1': 1,
+        'cat2': 1,
+        'cat3': 1,
+        'cat4': 1,
+        'cat5': 1,
+        'cat6': 1,
+    }
     
     for cat in nn_output:
-        tmp_loss = F.cross_entropy(nn_output[cat], ground_truth[cat])
-        opt[cat] = tmp_loss
-        sum_loss += tmp_loss
-        return sum_loss, opt
+        # tmp_loss = F.cross_entropy(nn_output[cat], ground_truth[cat])
+
+        # use focal loss
+        num_class = nn_output[cat].size(1)
+        focal_loss = FocalLoss(num_class)
+        tmp_loss = focal_loss(nn_output[cat], ground_truth[cat])
+
+        opt[cat] = weights[cat]*tmp_loss
+        sum_loss += weights[cat]*tmp_loss
+        
+    return sum_loss, opt
 
 
 def result_matrics(nn_output, ground_truth):
@@ -194,8 +220,8 @@ def validate(model, dataloader, device, logger=None, epoch=None, checkpoint=None
     if checkpoint is not None:
        checkpoint_load(model, checkpoint)
 
-    model.eval()
     with torch.no_grad():
+         model.eval()
          avg_loss = 0
          val_accuracies = {
              'cat1': 0,
@@ -237,6 +263,8 @@ def validate(model, dataloader, device, logger=None, epoch=None, checkpoint=None
            logger.add_scalar('val_accuracy/'+cat, val_accuracies[cat], epoch)
        logger.add_scalar('val_accuracy/avg', sum(val_accuracies.values())/6, epoch)
 
+
+    model.train()
     return avg_loss, val_accuracies
 
 
@@ -260,8 +288,9 @@ def train(start_epoch=1, n_epochs=50, batch_size=32, num_workers=8):
 
     # train data
     train_transform = transforms.Compose([
-        transforms.Resize(224),
+        transforms.Resize(256),
         transforms.CenterCrop(224),
+        transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
@@ -273,7 +302,7 @@ def train(start_epoch=1, n_epochs=50, batch_size=32, num_workers=8):
 
     # val data
     val_transform = transforms.Compose([
-        transforms.Resize(224),
+        transforms.Resize(256),
         transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -292,6 +321,7 @@ def train(start_epoch=1, n_epochs=50, batch_size=32, num_workers=8):
     optimizer = torch.optim.Adam(model.parameters())
 
     # log stuff
+    # TODO
     logdir = os.path.join(GLOBAL_PATH, 'logs', get_cur_time())
     print(logdir)
     savedir = os.path.join(GLOBAL_PATH, 'checkpoints', get_cur_time())
@@ -302,12 +332,19 @@ def train(start_epoch=1, n_epochs=50, batch_size=32, num_workers=8):
 
     print('Start training ...')
 
-    model.train()
     checkpoint_path = None
     all_loss_accuracy = {}
     n_train_batches = len(train_dataloader)
     for epoch in range(start_epoch, n_epochs+1):
         total_loss = 0
+        total_loss_each = {
+             'cat1': 0,
+             'cat2': 0,
+             'cat3': 0,
+             'cat4': 0,
+             'cat5': 0,
+             'cat6': 0,
+        }
         train_accuracies = {
              'cat1': 0,
              'cat2': 0,
@@ -330,6 +367,7 @@ def train(start_epoch=1, n_epochs=50, batch_size=32, num_workers=8):
             accuracy = result_matrics(nn_output, ground_truth)
              
             for cat in train_accuracies:
+                total_loss_each[cat] += loss_each[cat]
                 train_accuracies[cat] += accuracy[cat]
             
             loss.backward()
@@ -349,6 +387,8 @@ def train(start_epoch=1, n_epochs=50, batch_size=32, num_workers=8):
 
         logger.add_scalar('train_loss', total_loss/n_train_batches, epoch)
         for cat in train_accuracies:
+            logger.add_scalar('train_loss/'+cat, total_loss_each[cat], epoch)
+        for cat in train_accuracies:
            logger.add_scalar('train_accuracy/'+cat, train_accuracies[cat], epoch)
         logger.add_scalar('train_accuracy/avg', sum(train_accuracies.values())/6, epoch)
 
@@ -364,8 +404,4 @@ def train(start_epoch=1, n_epochs=50, batch_size=32, num_workers=8):
     return checkpoint_path, all_loss_accuracy
 
 
-last_checkpoint_path, all_loss_accuracy = train(start_epoch=1, n_epochs=100, batch_size=32, num_workers=2)
-
-with open('final_opt', 'w') as f:
-    f.write(all_loss_accuracy)
-f.close()
+last_checkpoint_path, all_loss_accuracy = train(start_epoch=1, n_epochs=50, batch_size=32, num_workers=2)
