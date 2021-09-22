@@ -19,7 +19,8 @@ from dataloader import FashionDataset
 from utils import result_matrics, checkpoint_save, checkpoint_load, get_cur_time
 
 
-
+time = '2021-09-22_16-36'
+e = '70'
 
 GLOBAL_PATH = ''
 batch_size = 32
@@ -27,7 +28,7 @@ num_workers = 8
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 opt_list = []
 
-model_path = 'checkpoints/2021-09-21_20-58/checkpoint-000040.pth'
+model_path = 'checkpoints/'+time+'/checkpoint-0000'+e+'.pth'
 model = MultiLabelModel()
 model.load_state_dict(torch.load(model_path))
 model = model.to(device)
