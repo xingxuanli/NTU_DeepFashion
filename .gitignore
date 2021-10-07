@@ -132,3 +132,9 @@ dmypy.json
 FashionDataset
 
 .DS_Store
+checkpoints/
+logs/
+prediction_archive/
+
+prediction.txt
+prediction.zip
