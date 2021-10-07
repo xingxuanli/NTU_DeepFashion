@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torchvision.models as models
 import torchvision.transforms as transforms
 from focalloss import FocalLoss
+import pretrainedmodels
 
 
 
@@ -11,12 +12,14 @@ class MultiLabelModel(nn.Module):
     def __init__(self, n_classes=[7, 3, 3, 4, 6, 3]):
         super().__init__()
         # pretrained resnet50 as base model
-        self.resnet50 = models.resnet50(pretrained=True)
-        self.resnet50.fc = nn.Linear(in_features=2048, out_features=1024)
-        
+        # self.resnet50 = models.resnet50(pretrained=True)
+        # self.resnet50.fc = nn.Linear(in_features=2048, out_features=1024)
+        self.model = models.resnet50(pretrained=True)
+        # self.model = pretrainedmodels.se_resnet101(num_classes=1000, pretrained='imagenet')
+
 
         self.fc1 = nn.Sequential(
-            nn.Linear(in_features=1024, out_features=512),
+            nn.Linear(in_features=1000, out_features=512),
             nn.ReLU()
         )
 
@@ -35,44 +38,44 @@ class MultiLabelModel(nn.Module):
             nn.ReLU()
         )
 
-        classifier_in = 64
+        classifier_in = 1000
         # create sequential layers for all 6 cats
         self.cat1 = nn.Sequential(
-            nn.Dropout(0.2),
+            # nn.Dropout(0.2),
             nn.Linear(in_features=classifier_in, out_features=n_classes[0])
         )
 
         self.cat2 = nn.Sequential(
-            nn.Dropout(0.2),
+            # nn.Dropout(0.2),
             nn.Linear(in_features=classifier_in, out_features=n_classes[1])
         )
         
         self.cat3 = nn.Sequential(
-            nn.Dropout(0.2),
+            # nn.Dropout(0.2),
             nn.Linear(in_features=classifier_in, out_features=n_classes[2])
         )
 
         self.cat4 = nn.Sequential(
-            nn.Dropout(0.2),
+            # nn.Dropout(0.2),
             nn.Linear(in_features=classifier_in, out_features=n_classes[3])
         )
 
         self.cat5 = nn.Sequential(
-            nn.Dropout(0.2),
+            # nn.Dropout(0.2),
             nn.Linear(in_features=classifier_in, out_features=n_classes[4])
         )
 
         self.cat6 = nn.Sequential(
-            nn.Dropout(0.2),
+            # nn.Dropout(0.2),
             nn.Linear(in_features=classifier_in, out_features=n_classes[5])
         )
 
     def forward(self, x):
-        x = self.resnet50(x)
-        x = self.fc1(x)
-        x = self.fc2(x)
-        x = self.fc3(x)
-        x = self.fc4(x)
+        x = self.model(x)
+        # x = self.fc1(x)
+        # x = self.fc2(x)
+        # x = self.fc3(x)
+        # x = self.fc4(x)
         
         opt = {
             'cat1': self.cat1(x),

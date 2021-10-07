@@ -19,8 +19,8 @@ from dataloader import FashionDataset
 from utils import result_matrics, checkpoint_save, checkpoint_load, get_cur_time
 
 
-time = '2021-09-22_16-36'
-e = '70'
+time = '2021-10-07_13-15'
+e = '10'
 
 GLOBAL_PATH = ''
 batch_size = 32
