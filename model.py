@@ -14,9 +14,10 @@ class MultiLabelModel(nn.Module):
         # pretrained resnet50 as base model
         # self.resnet50 = models.resnet50(pretrained=True)
         # self.resnet50.fc = nn.Linear(in_features=2048, out_features=1024)
-        self.model = models.resnet50(pretrained=True)
+        # self.model = models.resnet50(pretrained=True)
         # self.model = pretrainedmodels.se_resnet101(num_classes=1000, pretrained='imagenet')
-
+        self.model = pretrainedmodels.se_resnext50_32x4d(num_classes=1000, pretrained='imagenet')
+        # self.model = pretrainedmodels.nasnetalarge(num_classes=1000, pretrained='imagenet')
 
         self.fc1 = nn.Sequential(
             nn.Linear(in_features=1000, out_features=512),
@@ -41,32 +42,32 @@ class MultiLabelModel(nn.Module):
         classifier_in = 1000
         # create sequential layers for all 6 cats
         self.cat1 = nn.Sequential(
-            # nn.Dropout(0.2),
+            nn.Dropout(0.1),
             nn.Linear(in_features=classifier_in, out_features=n_classes[0])
         )
 
         self.cat2 = nn.Sequential(
-            # nn.Dropout(0.2),
+            nn.Dropout(0.1),
             nn.Linear(in_features=classifier_in, out_features=n_classes[1])
         )
         
         self.cat3 = nn.Sequential(
-            # nn.Dropout(0.2),
+            nn.Dropout(0.1),
             nn.Linear(in_features=classifier_in, out_features=n_classes[2])
         )
 
         self.cat4 = nn.Sequential(
-            # nn.Dropout(0.2),
+            nn.Dropout(0.1),
             nn.Linear(in_features=classifier_in, out_features=n_classes[3])
         )
 
         self.cat5 = nn.Sequential(
-            # nn.Dropout(0.2),
+            nn.Dropout(0.1),
             nn.Linear(in_features=classifier_in, out_features=n_classes[4])
         )
 
         self.cat6 = nn.Sequential(
-            # nn.Dropout(0.2),
+            nn.Dropout(0.1),
             nn.Linear(in_features=classifier_in, out_features=n_classes[5])
         )
 
@@ -93,12 +94,12 @@ class MultiLabelModel(nn.Module):
         opt = {}
 
         weights = {
-            'cat1': 1,
-            'cat2': 1,
-            'cat3': 1,
-            'cat4': 1,
-            'cat5': 1,
-            'cat6': 1,
+            'cat1': 0.95,#2
+            'cat2': 0.85,#4
+            'cat3': 0.85,#4
+            'cat4': 0.9,#3
+            'cat5': 1,#1
+            'cat6': 0.9,#3
         }
         
         for cat in nn_output:

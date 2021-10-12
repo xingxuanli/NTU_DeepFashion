@@ -48,7 +48,7 @@ class FocalLoss(nn.Module):
 
 
         if inputs.is_cuda and not self.alpha.is_cuda:
-            self.alpha = self.alpha.cuda()
+            self.alpha = self.alpha.cuda(1)
         alpha = self.alpha[ids.data.view(-1)]
 
         probs = (P*class_mask).sum(1).view(-1,1)

@@ -21,6 +21,7 @@ from utils import result_matrics, checkpoint_save, checkpoint_load, get_cur_time
 
 time = '2021-10-07_13-15'
 e = '10'
+model_path = 'best_model.pth'
 
 GLOBAL_PATH = ''
 batch_size = 32
@@ -28,7 +29,7 @@ num_workers = 8
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 opt_list = []
 
-model_path = 'checkpoints/'+time+'/checkpoint-0000'+e+'.pth'
+# model_path = 'checkpoints/'+time+'/checkpoint-0000'+e+'.pth'
 model = MultiLabelModel()
 model.load_state_dict(torch.load(model_path))
 model = model.to(device)
@@ -37,8 +38,8 @@ IMG_PATH = os.path.join(GLOBAL_PATH, 'FashionDataset/')
 SPLIT_PATH = os.path.join(GLOBAL_PATH, 'FashionDataset/split/')
 
 test_transform = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
+    transforms.Resize((224, 224)),
+    # transforms.CenterCrop(224),
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])

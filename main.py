@@ -84,7 +84,10 @@ def validate(model, dataloader, device, logger=None, epoch=None, checkpoint=None
 
 def train(model, optimizer, train_dataloader, val_dataloader, device, 
             n_epochs=50, logger=None, savedir=None, f_model=10, f_val=1):
-    
+    best_val_accuracy = 0
+    lambda1 = lambda epoch: 0.65 ** epoch
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda1)
+
     for epoch in range(1, n_epochs):
 
         train_loss = 0
@@ -115,7 +118,9 @@ def train(model, optimizer, train_dataloader, val_dataloader, device,
 
             loss.backward()
             optimizer.step()
-
+        
+        # scheduler.step()
+        print('learning rate:', optimizer.param_groups[0]['lr'])
         n_train_batches = len(train_dataloader)
 
         # batch loss and avg accuracies
@@ -146,13 +151,19 @@ def train(model, optimizer, train_dataloader, val_dataloader, device,
             checkpoint_path = checkpoint_save(model, savedir, epoch)
         if epoch % f_val == 0:
             val_loss, val_accuracies = validate(model, val_dataloader, device, logger, epoch)
+            avg_val_accuracy = sum(val_accuracies.values())/6
+            if avg_val_accuracy > best_val_accuracy:
+                best_val_accuracy = avg_val_accuracy
+                torch.save(model.state_dict(), 'best_model.pth')
+                print('#*#*#*#*#*#*#*#*#*# best model saved at epoch', epoch)
 
 
 
 
 def main(batch_size, num_workers, n_epochs, f_model, f_val):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     model = MultiLabelModel().to(device)
+    #model = nn.DataParallel(model).to(device)
     optimizer = torch.optim.Adam(model.parameters())
 
     ### train and val dataloader
@@ -162,8 +173,8 @@ def main(batch_size, num_workers, n_epochs, f_model, f_val):
 
     # train
     train_transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
+        transforms.Resize((224, 224)),
+        # transforms.CenterCrop(224),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -176,8 +187,8 @@ def main(batch_size, num_workers, n_epochs, f_model, f_val):
 
     # val 
     val_transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
+        transforms.Resize((224, 224)),
+        # transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
@@ -206,7 +217,7 @@ def main(batch_size, num_workers, n_epochs, f_model, f_val):
 
 batch_size = 32
 num_workers = 8
-n_epochs = 100
+n_epochs = 30
 f_model = 10
 f_val = 1
 main(batch_size, num_workers, n_epochs, f_model, f_val)
